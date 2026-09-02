@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * dualnic-hat-overlay.dts -- DualNIC-HAT Device Tree overlay
+ *
+ * SPI numaralandirilamaz bir veri yoludur; hattaki bir cipin kimligini
+ * soracak standart bir mekanizma yoktur. Kartin uzerindeki iki W5500
+ * denetleyicisi bu nedenle sisteme Device Tree ile bildirilir.
+ *
+ * Kaynak haritasi, donanim ekibiyle birinci gunde mutabik kalinan arayuz
+ * sozlesmesinden alinmistir (Tablo 1.2):
+ *
+ *   NIC #1 : CE0, INT = GPIO25, RST = GPIO23, MAC 02:00:00:00:00:01
+ *   NIC #2 : CE1, INT = GPIO24, RST = GPIO22, MAC 02:00:00:00:00:02
+ *
+ * Reset hatlarinin Device Tree uzerinden bildirilmesi bilincli bir
+ * tercihtir: surucu, GPIO numarasini kaynak kodunda sabit olarak
+ * barindirmaz; boylece kartin bir sonraki revizyonunda hat degisse dahi
+ * surucu yeniden derlenmeden calismaya devam eder.
+ *
+ * Derleme:
+ *   dtc -@ -I dts -O dtb -o dualnic-hat.dtbo dualnic-hat-overlay.dts
+ * Kullanim:
+ *   sudo dtoverlay dualnic-hat            (gecici)
+ *   /boot/firmware/config.txt: dtoverlay=dualnic-hat   (kalici)
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	compatible = "brcm,bcm2835";
+
+	/* spidev, ayni chip select hatlarini kullandigindan devre disi
+	 * birakilir. Aksi halde /sys/bus/spi/devices/ altinda spidev
+	 * cihazlari olusur ve surucu ile eslesme gerceklesmez (Tablo 6.1).
+	 */
+	fragment@0 {
+		target = <&spidev0>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@1 {
+		target = <&spidev1>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@2 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* ---- NIC #1 : CE0, INT=GPIO25, RST=GPIO23 ---- */
+			nic0: nic@0 {
+				compatible	= "ctech,dnhat-w5500";
+				reg		= <0>;
+				spi-max-frequency = <30000000>;
+
+				interrupt-parent = <&gpio>;
+				interrupts	= <25 IRQ_TYPE_EDGE_FALLING>;
+
+				reset-gpios	= <&gpio 23 GPIO_ACTIVE_LOW>;
+				local-mac-address = [02 00 00 00 00 01];
+				status		= "okay";
+			};
+
+			/* ---- NIC #2 : CE1, INT=GPIO24, RST=GPIO22 ---- */
+			nic1: nic@1 {
+				compatible	= "ctech,dnhat-w5500";
+				reg		= <1>;
+				spi-max-frequency = <30000000>;
+
+				interrupt-parent = <&gpio>;
+				interrupts	= <24 IRQ_TYPE_EDGE_FALLING>;
+
+				reset-gpios	= <&gpio 22 GPIO_ACTIVE_LOW>;
+				local-mac-address = [02 00 00 00 00 02];
+				status		= "okay";
+			};
+		};
+	};
+};
