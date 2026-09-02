@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#test: improve acceptance_test done
 # SPDX-License-Identifier: GPL-2.0
 #
 # kabul_testi.sh -- DualNIC-HAT W5500 surucusu kabul testi
